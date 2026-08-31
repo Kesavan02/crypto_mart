@@ -1,0 +1,24 @@
+{
+    "flutter": {
+        "platforms": {
+            "android": {
+                "default": {
+                    "projectId": "crypto-mart-53c7b",
+                    "appId": "1:246767430236:android:8d9b93d80f1795f86dd499",
+                    "fileOutput": "android/app/google-services.json"
+                }
+            },
+            "dart": {
+                "lib/firebase_options.dart": {
+                    "projectId": "crypto-mart-53c7b",
+                    "configurations": {
+                        "android": "1:246767430236:android:8d9b93d80f1795f86dd499",
+                        "ios": "1:246767430236:ios:c9f1d93b0f2aed0c6dd499",
+                        "web": "1:246767430236:web:30d3cb95ae44055f6dd499",
+                        "windows": "1:246767430236:web:91d15f23f8f309ed6dd499"
+                    }
+                }
+            }
+        }
+    }
+}
