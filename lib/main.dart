@@ -1,121 +1,157 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+import 'core/network/dio_client.dart';
+import 'core/theme/app_theme.dart';
+import 'core/widgets/app_update_gate.dart';
+import 'features/crypto_market/data/datasources/crypto_local_data_source.dart';
+import 'features/crypto_market/data/datasources/crypto_remote_data_source.dart';
+import 'features/crypto_market/data/repositories/crypto_repository_impl.dart';
+import 'features/crypto_market/domain/entities/coin_entity.dart';
+import 'features/crypto_market/domain/usecases/get_coin_chart_usecase.dart';
+import 'features/crypto_market/domain/usecases/get_coin_detail_usecase.dart';
+import 'features/crypto_market/domain/usecases/get_coins_usecase.dart';
+import 'features/crypto_market/domain/usecases/get_watchlist_usecase.dart';
+import 'features/crypto_market/domain/usecases/toggle_watchlist_usecase.dart';
+import 'features/crypto_market/presentation/pages/coin_detail_page.dart';
+import 'features/crypto_market/presentation/pages/main_navigation_page.dart';
+import 'features/crypto_market/presentation/state/coin_detail_bloc.dart';
+import 'features/crypto_market/presentation/state/crypto_list_bloc.dart';
+import 'features/crypto_market/presentation/state/watchlist_cubit.dart';
+import 'firebase_options.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+
+import 'features/settings/presentation/state/settings_cubit.dart';
 
 void main() {
-  runApp(const MyApp());
-}
+  runZonedGuarded<Future<void>>(
+    () async {
+      WidgetsFlutterBinding.ensureInitialized();
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
 
-  // This widget is the root of your application.
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: .fromSeed(seedColor: Colors.deepPurple),
-      ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
-    );
-  }
-}
+      final isCrashlyticsSupported = !kIsWeb &&
+          (defaultTargetPlatform == TargetPlatform.android ||
+              defaultTargetPlatform == TargetPlatform.iOS);
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
+      if (isCrashlyticsSupported) {
+        FlutterError.onError =
+            FirebaseCrashlytics.instance.recordFlutterFatalError;
 
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
+        PlatformDispatcher.instance.onError =
+            (Object error, StackTrace stackTrace) {
+          FirebaseCrashlytics.instance.recordError(
+            error,
+            stackTrace,
+            fatal: true,
+          );
+          return true;
+        };
+      } else {
+        FlutterError.onError = FlutterError.dumpErrorToConsole;
+        PlatformDispatcher.instance.onError =
+            (Object error, StackTrace stackTrace) {
+          debugPrint('Uncaught error: $error\n$stackTrace');
+          return true;
+        };
+      }
 
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
+      final dioClient = DioClient();
+      final remoteDataSource =
+          CryptoRemoteDataSourceImpl(client: dioClient.instance);
+      final localDataSource = CryptoLocalDataSourceImpl();
+      final repository = CryptoRepositoryImpl(
+        remoteDataSource: remoteDataSource,
+        localDataSource: localDataSource,
+      );
 
-  final String title;
-
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
-
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
-    return Scaffold(
-      appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: .center,
-          children: [
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-          ],
+      runApp(
+        CryptoMartApp(
+          repository: repository,
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
+      );
+    },
+    (Object error, StackTrace stackTrace) {
+      final isCrashlyticsSupported = !kIsWeb &&
+          (defaultTargetPlatform == TargetPlatform.android ||
+              defaultTargetPlatform == TargetPlatform.iOS);
+      if (isCrashlyticsSupported) {
+        FirebaseCrashlytics.instance.recordError(
+          error,
+          stackTrace,
+          fatal: true,
+        );
+      } else {
+        debugPrint('Zoned error: $error\n$stackTrace');
+      }
+    },
+  );
+}
+
+class CryptoMartApp extends StatelessWidget {
+  final CryptoRepositoryImpl repository;
+
+  const CryptoMartApp({
+    super.key,
+    required this.repository,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider<SettingsCubit>(
+          create: (_) => SettingsCubit()..loadSettings(),
+        ),
+        BlocProvider<CryptoListBloc>(
+          create: (_) => CryptoListBloc(
+            getCoinsUseCase: GetCoinsUseCase(repository),
+          ),
+        ),
+        BlocProvider<CoinDetailBloc>(
+          create: (_) => CoinDetailBloc(
+            getCoinDetailUseCase: GetCoinDetailUseCase(repository),
+            getCoinChartUseCase: GetCoinChartUseCase(repository),
+          ),
+        ),
+        BlocProvider<WatchlistCubit>(
+          create: (_) => WatchlistCubit(
+            getWatchlistUseCase: GetWatchlistUseCase(repository),
+            toggleWatchlistUseCase: ToggleWatchlistUseCase(repository),
+          ),
+        ),
+      ],
+      child: BlocBuilder<SettingsCubit, SettingsState>(
+        builder: (context, settingsState) {
+          return MaterialApp(
+            title: 'CryptoMart',
+            debugShowCheckedModeBanner: false,
+            theme: AppTheme.lightTheme,
+            darkTheme: AppTheme.darkTheme,
+            themeMode: settingsState.themeMode,
+            onGenerateRoute: (settings) {
+              if (settings.name == '/coin_detail') {
+                final coin = settings.arguments as CoinEntity?;
+                return MaterialPageRoute(
+                  builder: (_) => CoinDetailPage(
+                    coinEntity: coin,
+                    coinId: coin?.id,
+                  ),
+                );
+              }
+              return null;
+            },
+            home: const AppUpdateGate(
+              child: MainNavigationPage(),
+            ),
+          );
+        },
       ),
     );
   }

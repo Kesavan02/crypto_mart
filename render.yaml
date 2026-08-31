@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: crypto-mart-backend
+    env: node
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: COINGECKO_BASE_URL
+        value: https://api.coingecko.com/api/v3
+      - key: BINANCE_BASE_URL
+        value: https://api.binance.com/api/v3

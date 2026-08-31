@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "246767430236",
+    "project_id": "crypto-mart-53c7b",
+    "storage_bucket": "crypto-mart-53c7b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:246767430236:android:8d9b93d80f1795f86dd499",
+        "android_client_info": {
+          "package_name": "com.example.crypto_mart"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCEnCmo6Tb-Urfotvks3vuUc-fV039MQEA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
