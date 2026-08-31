@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -15,11 +17,30 @@ class FetchCryptoListEvent extends CryptoListEvent {
   final String? search;
   final String? sortBy;
   final String? order;
+  final bool resetFilters;
 
-  const FetchCryptoListEvent({this.search, this.sortBy, this.order});
+  const FetchCryptoListEvent({
+    this.search,
+    this.sortBy,
+    this.order,
+    this.resetFilters = false,
+  });
 
   @override
-  List<Object?> get props => [search, sortBy, order];
+  List<Object?> get props => [search, sortBy, order, resetFilters];
+}
+
+class RefreshCryptoListEvent extends CryptoListEvent {
+  final Completer<void>? completer;
+  final bool resetFilters;
+
+  const RefreshCryptoListEvent({
+    this.completer,
+    this.resetFilters = false,
+  });
+
+  @override
+  List<Object?> get props => [completer, resetFilters];
 }
 
 abstract class CryptoListState extends Equatable {
@@ -37,15 +58,17 @@ class CryptoListLoadedState extends CryptoListState {
   final List<CoinEntity> coins;
   final String? currentSearch;
   final String? currentSortBy;
+  final String? currentOrder;
 
   const CryptoListLoadedState({
     required this.coins,
     this.currentSearch,
     this.currentSortBy,
+    this.currentOrder,
   });
 
   @override
-  List<Object?> get props => [coins, currentSearch, currentSortBy];
+  List<Object?> get props => [coins, currentSearch, currentSortBy, currentOrder];
 }
 
 class CryptoListEmptyState extends CryptoListState {
@@ -69,21 +92,71 @@ class CryptoListErrorState extends CryptoListState {
 class CryptoListBloc extends Bloc<CryptoListEvent, CryptoListState> {
   final GetCoinsUseCase getCoinsUseCase;
 
+  String? _currentSearch;
+  String? _currentSortBy;
+  String? _currentOrder;
+
+  String? get currentSearch => _currentSearch;
+  String? get currentSortBy => _currentSortBy;
+  String? get currentOrder => _currentOrder;
+
   CryptoListBloc({required this.getCoinsUseCase})
       : super(CryptoListInitialState()) {
     on<FetchCryptoListEvent>(_onFetchCoins);
+    on<RefreshCryptoListEvent>(_onRefreshCoins);
   }
 
   Future<void> _onFetchCoins(
     FetchCryptoListEvent event,
     Emitter<CryptoListState> emit,
   ) async {
+    if (event.resetFilters) {
+      _currentSearch = null;
+      _currentSortBy = null;
+      _currentOrder = null;
+    } else {
+      if (event.search != null) {
+        _currentSearch = event.search;
+      }
+      if (event.sortBy != null) {
+        _currentSortBy = event.sortBy;
+      }
+      if (event.order != null) {
+        _currentOrder = event.order;
+      }
+    }
+
     emit(CryptoListLoadingState());
+    await _performFetch(emit);
+  }
+
+  Future<void> _onRefreshCoins(
+    RefreshCryptoListEvent event,
+    Emitter<CryptoListState> emit,
+  ) async {
+    try {
+      if (event.resetFilters) {
+        _currentSearch = null;
+        _currentSortBy = null;
+        _currentOrder = null;
+      }
+      await _performFetch(emit);
+    } finally {
+      if (event.completer != null && !event.completer!.isCompleted) {
+        event.completer!.complete();
+      }
+    }
+  }
+
+  Future<void> _performFetch(Emitter<CryptoListState> emit) async {
+    final effectiveSearch = (_currentSearch != null && _currentSearch!.trim().isNotEmpty)
+        ? _currentSearch!.trim()
+        : null;
 
     final result = await getCoinsUseCase(
-      search: event.search,
-      sortBy: event.sortBy,
-      order: event.order,
+      search: effectiveSearch,
+      sortBy: _currentSortBy,
+      order: _currentOrder,
     );
 
     if (result.failure != null) {
@@ -97,8 +170,9 @@ class CryptoListBloc extends Bloc<CryptoListEvent, CryptoListState> {
     } else {
       emit(CryptoListLoadedState(
         coins: result.coins!,
-        currentSearch: event.search,
-        currentSortBy: event.sortBy,
+        currentSearch: _currentSearch,
+        currentSortBy: _currentSortBy,
+        currentOrder: _currentOrder,
       ));
     }
   }

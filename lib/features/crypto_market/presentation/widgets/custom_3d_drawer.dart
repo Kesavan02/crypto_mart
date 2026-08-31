@@ -8,6 +8,7 @@ class Custom3DAnimatedDrawer extends StatefulWidget {
   final int selectedIndex;
   final ValueChanged<int> onIndexSelected;
   final String title;
+  final List<Widget>? actions;
 
   const Custom3DAnimatedDrawer({
     super.key,
@@ -15,6 +16,7 @@ class Custom3DAnimatedDrawer extends StatefulWidget {
     required this.selectedIndex,
     required this.onIndexSelected,
     required this.title,
+    this.actions,
   });
 
   @override
@@ -149,6 +151,7 @@ class Custom3DAnimatedDrawerState extends State<Custom3DAnimatedDrawer>
                     child: Scaffold(
                       appBar: CustomRoundedAppBar(
                         title: widget.title,
+                        actions: widget.actions,
                         leading: IconButton(
                           icon: AnimatedIcon(
                             icon: AnimatedIcons.menu_close,
