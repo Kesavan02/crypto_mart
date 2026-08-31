@@ -1,4 +1,8 @@
-require('dotenv').config();
+try {
+  require('dotenv').config();
+} catch (e) {
+  // Gracefully fallback if dotenv module is not installed in production environment (Render injects process.env natively)
+}
 
 const PORT = process.env.PORT || 3000;
 const CACHE_TTL_MS = 60 * 1000; // 60 Seconds
