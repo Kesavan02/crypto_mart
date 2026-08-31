@@ -1,6 +1,6 @@
 abstract final class ApiEndpoints {
-  // Configurable base URL: Defaults to local server, overridable via --dart-define or when deployed to Render
-  static const String _defaultBaseUrl = 'http://localhost:3000/api';
+  // Live Render backend URL (Overridable via --dart-define=BACKEND_URL=...)
+  static const String _defaultBaseUrl = 'https://crypto-mart.onrender.com/api';
 
   static const String nodeBackendBaseUrl = String.fromEnvironment(
     'BACKEND_URL',
