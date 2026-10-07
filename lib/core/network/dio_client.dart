@@ -12,9 +12,9 @@ class DioClient {
             Dio(
               BaseOptions(
                 baseUrl: ApiEndpoints.nodeBackendBaseUrl,
-                connectTimeout: const Duration(seconds: 10),
-                receiveTimeout: const Duration(seconds: 10),
-                sendTimeout: kIsWeb ? null : const Duration(seconds: 10),
+                connectTimeout: const Duration(seconds: 35),
+                receiveTimeout: const Duration(seconds: 35),
+                sendTimeout: kIsWeb ? null : const Duration(seconds: 35),
                 headers: <String, dynamic>{
                   'Accept': 'application/json',
                 },

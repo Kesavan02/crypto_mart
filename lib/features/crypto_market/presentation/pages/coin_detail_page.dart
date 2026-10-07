@@ -156,11 +156,18 @@ class _CoinDetailViewState extends State<_CoinDetailView> {
             final changeColor =
                 isPositive ? AppColors.gainGreen : AppColors.lossRed;
 
-            return SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+            return Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 860),
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(
+                    parent: BouncingScrollPhysics(),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                   Row(
                     children: [
                       CoinIcon(
@@ -259,6 +266,7 @@ class _CoinDetailViewState extends State<_CoinDetailView> {
                   ),
                   const SizedBox(height: 24),
                   GlassmorphicCard(
+                    padding: const EdgeInsets.fromLTRB(10, 16, 12, 14),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -375,9 +383,12 @@ class _CoinDetailViewState extends State<_CoinDetailView> {
                       ),
                     ),
                   ],
+                  const SizedBox(height: 36),
                 ],
               ),
-            );
+            ),
+          ),
+        );
           }
 
           return const SizedBox.shrink();

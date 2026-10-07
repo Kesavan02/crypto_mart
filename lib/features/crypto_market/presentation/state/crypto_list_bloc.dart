@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -15,17 +17,32 @@ class FetchCryptoListEvent extends CryptoListEvent {
   final String? search;
   final String? sortBy;
   final String? order;
+  final bool resetFilters;
   final bool isSilent;
 
   const FetchCryptoListEvent({
     this.search,
     this.sortBy,
     this.order,
+    this.resetFilters = false,
     this.isSilent = false,
   });
 
   @override
-  List<Object?> get props => [search, sortBy, order, isSilent];
+  List<Object?> get props => [search, sortBy, order, resetFilters, isSilent];
+}
+
+class RefreshCryptoListEvent extends CryptoListEvent {
+  final Completer<void>? completer;
+  final bool resetFilters;
+
+  const RefreshCryptoListEvent({
+    this.completer,
+    this.resetFilters = false,
+  });
+
+  @override
+  List<Object?> get props => [completer, resetFilters];
 }
 
 abstract class CryptoListState extends Equatable {
@@ -43,12 +60,14 @@ class CryptoListLoadedState extends CryptoListState {
   final List<CoinEntity> coins;
   final String currentSearch;
   final String currentSortBy;
+  final String? currentOrder;
   final bool isRefreshing;
 
   const CryptoListLoadedState({
     required this.coins,
     this.currentSearch = '',
     this.currentSortBy = 'market_cap',
+    this.currentOrder,
     this.isRefreshing = false,
   });
 
@@ -56,19 +75,21 @@ class CryptoListLoadedState extends CryptoListState {
     List<CoinEntity>? coins,
     String? currentSearch,
     String? currentSortBy,
+    String? currentOrder,
     bool? isRefreshing,
   }) {
     return CryptoListLoadedState(
       coins: coins ?? this.coins,
       currentSearch: currentSearch ?? this.currentSearch,
       currentSortBy: currentSortBy ?? this.currentSortBy,
+      currentOrder: currentOrder ?? this.currentOrder,
       isRefreshing: isRefreshing ?? this.isRefreshing,
     );
   }
 
   @override
   List<Object?> get props =>
-      [coins, currentSearch, currentSortBy, isRefreshing];
+      [coins, currentSearch, currentSortBy, currentOrder, isRefreshing];
 }
 
 class CryptoListEmptyState extends CryptoListState {
@@ -98,36 +119,85 @@ class CryptoListErrorState extends CryptoListState {
 class CryptoListBloc extends Bloc<CryptoListEvent, CryptoListState> {
   final GetCoinsUseCase getCoinsUseCase;
 
-  String _searchQuery = '';
-  String _sortBy = 'market_cap';
+  String _currentSearch = '';
+  String _currentSortBy = 'market_cap';
+  String? _currentOrder;
+
+  String get currentSearch => _currentSearch;
+  String get currentSortBy => _currentSortBy;
+  String? get currentOrder => _currentOrder;
 
   CryptoListBloc({required this.getCoinsUseCase})
       : super(CryptoListInitialState()) {
     on<FetchCryptoListEvent>(_onFetchCoins);
+    on<RefreshCryptoListEvent>(_onRefreshCoins);
   }
 
   Future<void> _onFetchCoins(
     FetchCryptoListEvent event,
     Emitter<CryptoListState> emit,
   ) async {
-    if (event.search != null) _searchQuery = event.search!;
-    if (event.sortBy != null) _sortBy = event.sortBy!;
+    if (event.resetFilters) {
+      _currentSearch = '';
+      _currentSortBy = 'market_cap';
+      _currentOrder = null;
+    } else {
+      if (event.search != null) {
+        _currentSearch = event.search!;
+      }
+      if (event.sortBy != null) {
+        _currentSortBy = event.sortBy!;
+      }
+      if (event.order != null) {
+        _currentOrder = event.order;
+      }
+    }
 
     if (!event.isSilent && state is! CryptoListLoadedState) {
       emit(CryptoListLoadingState());
     } else if (state is CryptoListLoadedState) {
-      final currentLoaded = state as CryptoListLoadedState;
-      emit(currentLoaded.copyWith(
+      final current = state as CryptoListLoadedState;
+      emit(current.copyWith(
         isRefreshing: true,
-        currentSearch: _searchQuery,
-        currentSortBy: _sortBy,
+        currentSearch: _currentSearch,
+        currentSortBy: _currentSortBy,
+        currentOrder: _currentOrder,
       ));
     }
 
+    await _performFetch(emit);
+  }
+
+  Future<void> _onRefreshCoins(
+    RefreshCryptoListEvent event,
+    Emitter<CryptoListState> emit,
+  ) async {
+    try {
+      if (event.resetFilters) {
+        _currentSearch = '';
+        _currentSortBy = 'market_cap';
+        _currentOrder = null;
+      }
+      if (state is CryptoListLoadedState) {
+        final current = state as CryptoListLoadedState;
+        emit(current.copyWith(isRefreshing: true));
+      }
+      await _performFetch(emit);
+    } finally {
+      if (event.completer != null && !event.completer!.isCompleted) {
+        event.completer!.complete();
+      }
+    }
+  }
+
+  Future<void> _performFetch(Emitter<CryptoListState> emit) async {
+    final effectiveSearch =
+        _currentSearch.trim().isNotEmpty ? _currentSearch.trim() : null;
+
     final result = await getCoinsUseCase(
-      search: _searchQuery,
-      sortBy: _sortBy,
-      order: event.order,
+      search: effectiveSearch,
+      sortBy: _currentSortBy,
+      order: _currentOrder,
     );
 
     result.fold(
@@ -136,22 +206,23 @@ class CryptoListBloc extends Bloc<CryptoListEvent, CryptoListState> {
           emit(CryptoListEmptyState(
             message:
                 'No cryptocurrency assets found matching your search criteria.',
-            currentSearch: _searchQuery,
-            currentSortBy: _sortBy,
+            currentSearch: _currentSearch,
+            currentSortBy: _currentSortBy,
           ));
         } else {
           emit(CryptoListLoadedState(
             coins: coins,
-            currentSearch: _searchQuery,
-            currentSortBy: _sortBy,
+            currentSearch: _currentSearch,
+            currentSortBy: _currentSortBy,
+            currentOrder: _currentOrder,
             isRefreshing: false,
           ));
         }
       },
       onFailure: (failure) {
         if (state is CryptoListLoadedState) {
-          final currentLoaded = state as CryptoListLoadedState;
-          emit(currentLoaded.copyWith(isRefreshing: false));
+          final current = state as CryptoListLoadedState;
+          emit(current.copyWith(isRefreshing: false));
         } else {
           emit(CryptoListErrorState(errorMessage: failure.message));
         }

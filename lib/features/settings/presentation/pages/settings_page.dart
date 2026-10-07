@@ -329,11 +329,12 @@ class _SettingsPageState extends State<SettingsPage> {
   ) {
     final isSelected = selectedCode == currency.code;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.surfaceDark : Colors.white,
+    return Material(
+      color: isDark ? AppColors.surfaceDark : Colors.white,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(
+        side: BorderSide(
           color: isSelected
               ? AppColors.accentCyan
               : (isDark ? AppColors.borderDark : Colors.grey.shade300),
@@ -341,6 +342,9 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
       ),
       child: ListTile(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+        ),
         onTap: () {
           context.read<SettingsCubit>().changeCurrency(currency);
         },

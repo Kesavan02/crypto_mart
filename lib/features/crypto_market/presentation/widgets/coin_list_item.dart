@@ -33,9 +33,7 @@ class CoinListItem extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       decoration: BoxDecoration(
-        color: cardBg,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: borderColor),
         boxShadow: isDark
             ? []
             : [
@@ -47,9 +45,16 @@ class CoinListItem extends StatelessWidget {
               ],
       ),
       child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(16),
+        color: cardBg,
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: borderColor),
+        ),
         child: ListTile(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           onTap: onTap,
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           leading: Row(

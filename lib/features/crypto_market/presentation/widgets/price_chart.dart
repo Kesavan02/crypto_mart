@@ -45,12 +45,14 @@ class _PriceChartState extends State<PriceChart> {
     final chipBg = isDark ? AppColors.surfaceDark : AppColors.surfaceLight;
     final chipBorder = isDark ? AppColors.borderDark : AppColors.borderLight;
 
+    final isChartGain = widget.points.isNotEmpty &&
+        (widget.points.last.price >= widget.points.first.price);
     final lineColor =
-        widget.isPositive ? AppColors.gainGreen : AppColors.lossRed;
+        isChartGain ? AppColors.gainGreen : AppColors.lossRed;
 
     if (widget.points.isEmpty) {
       return Container(
-        height: 240,
+        height: 260,
         alignment: Alignment.center,
         child: Text(
           'Chart data unavailable',
@@ -63,13 +65,15 @@ class _PriceChartState extends State<PriceChart> {
       builder: (context, settingsState) {
         final currency = settingsState.selectedCurrency;
 
+        final displayPoints = _prepareDisplayPoints(widget.points);
+
         final activePoint = (_touchedIndex != null &&
                 _touchedIndex! >= 0 &&
-                _touchedIndex! < widget.points.length)
-            ? widget.points[_touchedIndex!]
-            : widget.points.last;
+                _touchedIndex! < displayPoints.length)
+            ? displayPoints[_touchedIndex!]
+            : displayPoints.last;
 
-        final firstPoint = widget.points.first;
+        final firstPoint = displayPoints.first;
 
         final activePriceConverted = activePoint.price * currency.rateFromUsd;
         final firstPriceConverted = firstPoint.price * currency.rateFromUsd;
@@ -81,23 +85,24 @@ class _PriceChartState extends State<PriceChart> {
         final pointColor =
             isPointPositive ? AppColors.gainGreen : AppColors.lossRed;
 
-        final spots = widget.points
+        final spots = displayPoints
             .asMap()
             .entries
             .map((e) =>
                 FlSpot(e.key.toDouble(), e.value.price * currency.rateFromUsd))
             .toList();
 
-        final rawMinY = widget.points
+        final rawMinY = displayPoints
             .map((p) => p.price * currency.rateFromUsd)
             .reduce((a, b) => a < b ? a : b);
-        final rawMaxY = widget.points
+        final rawMaxY = displayPoints
             .map((p) => p.price * currency.rateFromUsd)
             .reduce((a, b) => a > b ? a : b);
 
         final yRange = (rawMaxY - rawMinY) == 0 ? 1.0 : (rawMaxY - rawMinY);
         final computedMinY = rawMinY - (yRange * 0.08);
         final computedMaxY = rawMaxY + (yRange * 0.08);
+        final yInterval = (yRange / 3).clamp(1.0, double.infinity);
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -132,12 +137,20 @@ class _PriceChartState extends State<PriceChart> {
                               fontWeight: FontWeight.w600,
                             ),
                           ),
-                          Text(
-                            '${isPointPositive ? '+' : ''}${currency.symbol}${priceDiff.abs().toStringAsFixed(2)} (${isPointPositive ? '+' : ''}${percentChange.toStringAsFixed(2)}%)',
-                            style: TextStyle(
-                              color: pointColor,
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: pointColor.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              '${isPointPositive ? '+' : ''}${currency.symbol}${priceDiff.abs().toStringAsFixed(2)} (${isPointPositive ? '+' : ''}${percentChange.toStringAsFixed(2)}%)',
+                              style: TextStyle(
+                                color: pointColor,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ],
@@ -162,6 +175,7 @@ class _PriceChartState extends State<PriceChart> {
             if (widget.onDaysSelected != null)
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
                 child: Row(
                   children: [
                     (days: 1, label: '1D'),
@@ -199,29 +213,27 @@ class _PriceChartState extends State<PriceChart> {
                   }).toList(),
                 ),
               ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 18),
 
-            // Main Chart Canvas with Responsive Scroll & Smooth Curved Amplitude
+            // Main Chart Canvas - Full Width, Tall Vertical Headroom
             SizedBox(
-              height: 240,
+              height: 360,
               child: Stack(
                 children: [
                   LayoutBuilder(
                     builder: (context, constraints) {
-                      final isMobile = constraints.maxWidth < 600;
-                      final needScroll = isMobile && constraints.maxWidth < 450;
-                      final chartWidth = needScroll ? 460.0 : constraints.maxWidth;
-
-                      Widget chartWidget = SizedBox(
-                        width: chartWidth,
-                        height: 240,
+                      return SizedBox(
+                        width: constraints.maxWidth,
+                        height: 360,
                         child: LineChart(
                           LineChartData(
                             minY: computedMinY,
                             maxY: computedMaxY,
+                            clipData: const FlClipData.all(),
                             gridData: FlGridData(
                               show: true,
                               drawVerticalLine: false,
+                              horizontalInterval: yInterval,
                               getDrawingHorizontalLine: (value) {
                                 return FlLine(
                                   color: gridLineColor,
@@ -238,16 +250,22 @@ class _PriceChartState extends State<PriceChart> {
                               leftTitles: AxisTitles(
                                 sideTitles: SideTitles(
                                   showTitles: true,
-                                  reservedSize: 48,
+                                  reservedSize: 42,
+                                  interval: yInterval,
                                   getTitlesWidget: (value, meta) {
-                                    if (value == meta.min || value == meta.max) {
+                                    if (value <= meta.min + 0.1 ||
+                                        value >= meta.max - 0.1) {
                                       return const SizedBox.shrink();
                                     }
-                                    return Text(
-                                      _formatAxisPrice(value, currency.symbol),
-                                      style: TextStyle(
-                                        color: mutedTextColor,
-                                        fontSize: 10,
+                                    return Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: Text(
+                                        _formatAxisPrice(value, currency.symbol),
+                                        style: TextStyle(
+                                          color: mutedTextColor,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w500,
+                                        ),
                                       ),
                                     );
                                   },
@@ -256,14 +274,16 @@ class _PriceChartState extends State<PriceChart> {
                               bottomTitles: AxisTitles(
                                 sideTitles: SideTitles(
                                   showTitles: true,
-                                  reservedSize: 24,
-                                  interval: (widget.points.length / 4).clamp(1, 100),
+                                  reservedSize: 26,
+                                  interval: displayPoints.length > 4
+                                      ? (displayPoints.length / 4).toDouble()
+                                      : 1.0,
                                   getTitlesWidget: (value, meta) {
                                     final idx = value.toInt();
-                                    if (idx < 0 || idx >= widget.points.length) {
+                                    if (idx < 0 || idx >= displayPoints.length) {
                                       return const SizedBox.shrink();
                                     }
-                                    final point = widget.points[idx];
+                                    final point = displayPoints[idx];
                                     return Padding(
                                       padding: const EdgeInsets.only(top: 6),
                                       child: Text(
@@ -272,6 +292,7 @@ class _PriceChartState extends State<PriceChart> {
                                         style: TextStyle(
                                           color: mutedTextColor,
                                           fontSize: 10,
+                                          fontWeight: FontWeight.w500,
                                         ),
                                       ),
                                     );
@@ -282,15 +303,20 @@ class _PriceChartState extends State<PriceChart> {
                             borderData: FlBorderData(show: false),
                             lineTouchData: LineTouchData(
                               enabled: true,
-                              handleBuiltInTouches: true,
+                              handleBuiltInTouches: false,
                               touchCallback:
                                   (FlTouchEvent event, LineTouchResponse? response) {
-                                if (response == null ||
-                                    response.lineBarSpots == null ||
-                                    response.lineBarSpots!.isEmpty) {
+                                if (event is FlTapUpEvent ||
+                                    event is FlPanEndEvent ||
+                                    event is FlLongPressEnd) {
                                   setState(() {
                                     _touchedIndex = null;
                                   });
+                                  return;
+                                }
+                                if (response == null ||
+                                    response.lineBarSpots == null ||
+                                    response.lineBarSpots!.isEmpty) {
                                   return;
                                 }
                                 final spotIndex =
@@ -315,7 +341,7 @@ class _PriceChartState extends State<PriceChart> {
                                               FlDotCirclePainter(
                                         radius: 4.5,
                                         color: lineColor,
-                                        strokeWidth: 2,
+                                        strokeWidth: 2.5,
                                         strokeColor: isDark
                                             ? AppColors.surfaceDark
                                             : Colors.white,
@@ -326,8 +352,10 @@ class _PriceChartState extends State<PriceChart> {
                               },
                               touchTooltipData: LineTouchTooltipData(
                                 getTooltipColor: (_) => isDark
-                                    ? AppColors.surfaceDark.withValues(alpha: 0.9)
+                                    ? AppColors.surfaceDark.withValues(alpha: 0.95)
                                     : AppColors.surfaceLight.withValues(alpha: 0.95),
+                                fitInsideHorizontally: true,
+                                fitInsideVertically: true,
                                 getTooltipItems: (touchedSpots) {
                                   return touchedSpots.map((spot) {
                                     return LineTooltipItem(
@@ -342,13 +370,29 @@ class _PriceChartState extends State<PriceChart> {
                                 },
                               ),
                             ),
+                            showingTooltipIndicators: (_touchedIndex != null &&
+                                    _touchedIndex! >= 0 &&
+                                    _touchedIndex! < spots.length)
+                                ? [
+                                    ShowingTooltipIndicators([
+                                      LineBarSpot(
+                                        LineChartBarData(
+                                          spots: spots,
+                                          color: lineColor,
+                                        ),
+                                        0,
+                                        spots[_touchedIndex!],
+                                      ),
+                                    ]),
+                                  ]
+                                : const [],
                             lineBarsData: [
                               LineChartBarData(
                                 spots: spots,
                                 isCurved: true,
-                                curveSmoothness: 0.18,
+                                curveSmoothness: 0.20,
                                 color: lineColor,
-                                barWidth: isMobile ? 1.6 : 2.0,
+                                barWidth: 2.4,
                                 isStrokeCapRound: true,
                                 dotData: const FlDotData(show: false),
                                 belowBarData: BarAreaData(
@@ -357,7 +401,7 @@ class _PriceChartState extends State<PriceChart> {
                                     begin: Alignment.topCenter,
                                     end: Alignment.bottomCenter,
                                     colors: [
-                                      lineColor.withValues(alpha: 0.22),
+                                      lineColor.withValues(alpha: 0.25),
                                       lineColor.withValues(alpha: 0.0),
                                     ],
                                   ),
@@ -367,16 +411,6 @@ class _PriceChartState extends State<PriceChart> {
                           ),
                         ),
                       );
-
-                      if (needScroll) {
-                        return SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          physics: const BouncingScrollPhysics(),
-                          child: chartWidget,
-                        );
-                      }
-
-                      return chartWidget;
                     },
                   ),
                   if (widget.isChartLoading)
@@ -410,7 +444,13 @@ class _PriceChartState extends State<PriceChart> {
   }
 
   String _formatAxisPrice(double price, String symbol) {
-    if (price >= 1000) return '$symbol${(price / 1000).toStringAsFixed(0)}k';
+    if (price >= 1e9) {
+      return '$symbol${(price / 1e9).toStringAsFixed(1)}B';
+    } else if (price >= 1e6) {
+      return '$symbol${(price / 1e6).toStringAsFixed(1)}M';
+    } else if (price >= 1e3) {
+      return '$symbol${(price / 1e3).toStringAsFixed(0)}K';
+    }
     return '$symbol${price.toStringAsFixed(0)}';
   }
 
@@ -469,5 +509,18 @@ class _PriceChartState extends State<PriceChart> {
     } else {
       return '${dt.year}';
     }
+  }
+
+  List<ChartPointEntity> _prepareDisplayPoints(List<ChartPointEntity> rawPoints) {
+    if (rawPoints.length <= 80) return rawPoints;
+    final step = (rawPoints.length / 75).ceil();
+    final sampled = <ChartPointEntity>[];
+    for (int i = 0; i < rawPoints.length; i += step) {
+      sampled.add(rawPoints[i]);
+    }
+    if (sampled.isEmpty || sampled.last.timestamp != rawPoints.last.timestamp) {
+      sampled.add(rawPoints.last);
+    }
+    return sampled;
   }
 }

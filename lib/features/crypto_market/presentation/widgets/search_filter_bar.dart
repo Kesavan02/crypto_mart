@@ -6,15 +6,15 @@ import '../../../../core/constants/app_colors.dart';
 class SearchFilterBar extends StatefulWidget {
   final ValueChanged<String> onSearchChanged;
   final ValueChanged<String?> onSortChanged;
-  final String initialSearch;
-  final String initialSort;
+  final String? initialSearch;
+  final String? initialSort;
 
   const SearchFilterBar({
     super.key,
     required this.onSearchChanged,
     required this.onSortChanged,
-    this.initialSearch = '',
-    this.initialSort = 'market_cap',
+    this.initialSearch,
+    this.initialSort,
   });
 
   @override
@@ -29,22 +29,49 @@ class _SearchFilterBarState extends State<SearchFilterBar> {
   @override
   void initState() {
     super.initState();
-    _searchController = TextEditingController(text: widget.initialSearch);
-    _selectedSort = widget.initialSort;
+    _searchController = TextEditingController(text: widget.initialSearch ?? '');
+    _selectedSort = widget.initialSort ?? 'market_cap';
+    _searchController.addListener(_onTextChange);
+  }
+
+  void _onTextChange() {
+    if (mounted) setState(() {});
+  }
+
+  void _onSearchInput(String query) {
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 350), () {
+      widget.onSearchChanged(query);
+    });
+  }
+
+  void _onClearSearch() {
+    _debounceTimer?.cancel();
+    _searchController.clear();
+    widget.onSearchChanged('');
+  }
+
+  @override
+  void didUpdateWidget(covariant SearchFilterBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final expectedSearch = widget.initialSearch ?? '';
+    if (expectedSearch != _searchController.text) {
+      _searchController.text = expectedSearch;
+    }
+    final expectedSort = widget.initialSort ?? 'market_cap';
+    if (expectedSort != _selectedSort) {
+      setState(() {
+        _selectedSort = expectedSort;
+      });
+    }
   }
 
   @override
   void dispose() {
     _debounceTimer?.cancel();
+    _searchController.removeListener(_onTextChange);
     _searchController.dispose();
     super.dispose();
-  }
-
-  void _onTextChanged(String text) {
-    _debounceTimer?.cancel();
-    _debounceTimer = Timer(const Duration(milliseconds: 300), () {
-      widget.onSearchChanged(text);
-    });
   }
 
   @override
@@ -83,10 +110,7 @@ class _SearchFilterBarState extends State<SearchFilterBar> {
               child: TextField(
                 controller: _searchController,
                 style: TextStyle(color: textColor, fontSize: 14),
-                onChanged: (text) {
-                  setState(() {});
-                  _onTextChanged(text);
-                },
+                onChanged: _onSearchInput,
                 decoration: InputDecoration(
                   hintText: 'Search crypto (e.g. BTC, Solana)...',
                   hintStyle: TextStyle(
@@ -105,12 +129,7 @@ class _SearchFilterBarState extends State<SearchFilterBar> {
                             color: iconColor,
                             size: 18,
                           ),
-                          onPressed: () {
-                            _debounceTimer?.cancel();
-                            _searchController.clear();
-                            setState(() {});
-                            widget.onSearchChanged('');
-                          },
+                          onPressed: _onClearSearch,
                         )
                       : null,
                   border: InputBorder.none,
