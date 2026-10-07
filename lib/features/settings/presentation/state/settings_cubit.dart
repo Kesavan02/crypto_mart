@@ -31,43 +31,50 @@ class SettingsState extends Equatable {
 class SettingsCubit extends Cubit<SettingsState> {
   static const String _currencyKey = 'CRYPTO_MART_SELECTED_CURRENCY';
   static const String _themeModeKey = 'CRYPTO_MART_THEME_MODE';
+  final SharedPreferences? _prefs;
 
-  SettingsCubit()
+  SettingsCubit([this._prefs])
       : super(
           SettingsState(
-            selectedCurrency: CurrencyEntity.defaultCurrency,
-            themeMode: ThemeMode.dark,
+            selectedCurrency: _prefs != null
+                ? CurrencyEntity.fromCode(_prefs.getString(_currencyKey) ?? 'INR')
+                : CurrencyEntity.defaultCurrency,
+            themeMode: _prefs != null
+                ? _parseThemeMode(_prefs.getString(_themeModeKey) ?? 'light')
+                : ThemeMode.light,
           ),
         );
 
-  Future<void> loadSettings() async {
-    final prefs = await SharedPreferences.getInstance();
-    final currencyCode = prefs.getString(_currencyKey) ?? 'INR';
-    final themeStr = prefs.getString(_themeModeKey) ?? 'dark';
+  static ThemeMode _parseThemeMode(String themeStr) {
+    if (themeStr == 'dark') return ThemeMode.dark;
+    if (themeStr == 'system') return ThemeMode.system;
+    return ThemeMode.light;
+  }
 
-    ThemeMode mode = ThemeMode.dark;
-    if (themeStr == 'light') mode = ThemeMode.light;
-    if (themeStr == 'system') mode = ThemeMode.system;
+  Future<void> loadSettings() async {
+    final prefs = _prefs ?? await SharedPreferences.getInstance();
+    final currencyCode = prefs.getString(_currencyKey) ?? 'INR';
+    final themeStr = prefs.getString(_themeModeKey) ?? 'light';
 
     emit(
       SettingsState(
         selectedCurrency: CurrencyEntity.fromCode(currencyCode),
-        themeMode: mode,
+        themeMode: _parseThemeMode(themeStr),
       ),
     );
   }
 
   Future<void> changeCurrency(CurrencyEntity currency) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = _prefs ?? await SharedPreferences.getInstance();
     await prefs.setString(_currencyKey, currency.code);
 
     emit(state.copyWith(selectedCurrency: currency));
   }
 
   Future<void> changeThemeMode(ThemeMode themeMode) async {
-    final prefs = await SharedPreferences.getInstance();
-    String themeStr = 'dark';
-    if (themeMode == ThemeMode.light) themeStr = 'light';
+    final prefs = _prefs ?? await SharedPreferences.getInstance();
+    String themeStr = 'light';
+    if (themeMode == ThemeMode.dark) themeStr = 'dark';
     if (themeMode == ThemeMode.system) themeStr = 'system';
 
     await prefs.setString(_themeModeKey, themeStr);

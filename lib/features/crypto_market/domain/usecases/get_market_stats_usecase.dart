@@ -1,4 +1,4 @@
-import '../../../../core/errors/failures.dart';
+import '../../../../core/errors/result.dart';
 import '../entities/market_stats_entity.dart';
 import '../repositories/crypto_repository.dart';
 
@@ -7,7 +7,7 @@ class GetMarketStatsUseCase {
 
   const GetMarketStatsUseCase(this.repository);
 
-  Future<({Failure? failure, MarketStatsEntity? marketStats})> call() {
+  Future<Result<MarketStatsEntity>> call() {
     return repository.getMarketStats();
   }
 }

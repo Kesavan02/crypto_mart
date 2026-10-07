@@ -6,12 +6,16 @@ class EmptyStateWidget extends StatelessWidget {
   final String title;
   final String message;
   final IconData icon;
+  final VoidCallback? onAction;
+  final String? actionLabel;
 
   const EmptyStateWidget({
     super.key,
     required this.title,
     required this.message,
     this.icon = Icons.search_off_rounded,
+    this.onAction,
+    this.actionLabel,
   });
 
   @override
@@ -20,8 +24,11 @@ class EmptyStateWidget extends StatelessWidget {
     final isDark = theme.brightness == Brightness.dark;
 
     final primaryTextColor = theme.colorScheme.onSurface;
-    final secondaryTextColor = isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight;
-    final iconColor = isDark ? AppColors.textMutedDark : AppColors.textMutedLight;
+    final secondaryTextColor = isDark
+        ? AppColors.textSecondaryDark
+        : AppColors.textSecondaryLight;
+    final iconColor =
+        isDark ? AppColors.textMutedDark : AppColors.textMutedLight;
 
     return Center(
       child: Padding(
@@ -53,6 +60,30 @@ class EmptyStateWidget extends StatelessWidget {
                 height: 1.4,
               ),
             ),
+            if (onAction != null) ...[
+              const SizedBox(height: 16),
+              OutlinedButton(
+                onPressed: onAction,
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(
+                    color: isDark
+                        ? AppColors.accentCyanBright
+                        : AppColors.primaryBlue,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                child: Text(
+                  actionLabel ?? 'Refresh',
+                  style: TextStyle(
+                    color: isDark
+                        ? AppColors.accentCyanBright
+                        : AppColors.primaryBlue,
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),

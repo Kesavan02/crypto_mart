@@ -1,4 +1,4 @@
-import '../../../../core/errors/failures.dart';
+import '../../../../core/errors/result.dart';
 import '../entities/coin_detail_entity.dart';
 import '../repositories/crypto_repository.dart';
 
@@ -7,9 +7,7 @@ class GetCoinDetailUseCase {
 
   const GetCoinDetailUseCase(this.repository);
 
-  Future<({Failure? failure, CoinDetailEntity? coinDetail})> call(
-    String coinId,
-  ) {
+  Future<Result<CoinDetailEntity>> call(String coinId) {
     return repository.getCoinDetail(coinId);
   }
 }

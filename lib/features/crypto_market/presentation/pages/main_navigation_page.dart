@@ -5,7 +5,6 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/utils/responsive_layout.dart';
 import '../../../settings/presentation/pages/settings_page.dart';
 import '../../domain/entities/coin_entity.dart';
-import '../state/coin_detail_bloc.dart';
 import '../state/crypto_list_bloc.dart';
 import '../state/watchlist_cubit.dart';
 import '../widgets/custom_3d_drawer.dart';
@@ -113,9 +112,6 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                           setState(() {
                             _selectedDesktopCoin = coin;
                           });
-                          context.read<CoinDetailBloc>().add(
-                            FetchCoinDetailEvent(coinId: coin.id),
-                          );
                         },
                       )
                     : WatchlistPage(
@@ -123,9 +119,6 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
                           setState(() {
                             _selectedDesktopCoin = coin;
                           });
-                          context.read<CoinDetailBloc>().add(
-                            FetchCoinDetailEvent(coinId: coin.id),
-                          );
                         },
                       ),
               )
@@ -175,7 +168,7 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
     if (_currentIndex == 1) {
       return BlocBuilder<WatchlistCubit, WatchlistState>(
         builder: (context, watchlistState) {
-          if (watchlistState.watchlistIds.isEmpty) {
+          if (watchlistState.watchedCoins.isEmpty) {
             return const Center(
               child: EmptyStateWidget(
                 title: 'No Watchlist Item Selected',
@@ -186,42 +179,17 @@ class _MainNavigationPageState extends State<MainNavigationPage> {
             );
           }
 
-          return BlocBuilder<CryptoListBloc, CryptoListState>(
-            builder: (context, cryptoState) {
-              if (cryptoState is CryptoListLoadedState) {
-                final watchedCoins = cryptoState.coins
-                    .where((c) => watchlistState.isWatched(c.id))
-                    .toList();
+          final matchingCoins = watchlistState.watchedCoins.where(
+            (c) => c.id == _selectedDesktopCoin?.id,
+          );
+          final CoinEntity selectedCoin = matchingCoins.isNotEmpty
+              ? matchingCoins.first
+              : watchlistState.watchedCoins.first;
 
-                if (watchedCoins.isEmpty) {
-                  return const Center(
-                    child: EmptyStateWidget(
-                      title: 'No Watchlist Item Selected',
-                      message:
-                          'Tap the star icon on any cryptocurrency asset to bookmark it for quick access.',
-                      icon: Icons.star_border_rounded,
-                    ),
-                  );
-                }
-
-                final matchingCoins = watchedCoins.where(
-                  (c) => c.id == _selectedDesktopCoin?.id,
-                );
-                final CoinEntity selectedCoin = matchingCoins.isNotEmpty
-                    ? matchingCoins.first
-                    : watchedCoins.first;
-
-                return CoinDetailPage(
-                  key: ValueKey(selectedCoin.id),
-                  coinEntity: selectedCoin,
-                  coinId: selectedCoin.id,
-                );
-              }
-
-              return const Center(
-                child: CircularProgressIndicator(color: AppColors.accentCyan),
-              );
-            },
+          return CoinDetailPage(
+            key: ValueKey(selectedCoin.id),
+            coinEntity: selectedCoin,
+            coinId: selectedCoin.id,
           );
         },
       );

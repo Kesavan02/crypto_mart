@@ -71,12 +71,14 @@ class _SettingsPageState extends State<SettingsPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // ── 1. Theme Appearance Section ─────────────────────────────
-                  const Text(
+                  Text(
                     'Appearance',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: AppColors.textSecondaryDark,
+                      color: isDark
+                          ? AppColors.textSecondaryDark
+                          : AppColors.textSecondaryLight,
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -149,20 +151,24 @@ class _SettingsPageState extends State<SettingsPage> {
                   const SizedBox(height: 28),
 
                   // ── 2. Display Currency Section ─────────────────────────────
-                  const Text(
+                  Text(
                     'Display Currency',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: AppColors.textSecondaryDark,
+                      color: isDark
+                          ? AppColors.textSecondaryDark
+                          : AppColors.textSecondaryLight,
                     ),
                   ),
                   const SizedBox(height: 6),
-                  const Text(
+                  Text(
                     'Select your country currency to convert all prices, market caps, and charts automatically.',
                     style: TextStyle(
                       fontSize: 12,
-                      color: AppColors.textMutedDark,
+                      color: isDark
+                          ? AppColors.textMutedDark
+                          : AppColors.textMutedLight,
                     ),
                   ),
                   const SizedBox(height: 14),

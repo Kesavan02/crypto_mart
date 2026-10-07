@@ -149,13 +149,36 @@ class Custom3DAnimatedDrawerState extends State<Custom3DAnimatedDrawer>
                     child: Scaffold(
                       appBar: CustomRoundedAppBar(
                         title: widget.title,
-                        leading: IconButton(
-                          icon: AnimatedIcon(
-                            icon: AnimatedIcons.menu_close,
-                            progress: _controller,
-                            color: Colors.white,
+                        leading: Container(
+                          width: 36,
+                          height: 36,
+                          margin: const EdgeInsets.symmetric(
+                              vertical: 13, horizontal: 4),
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? const Color(0xFF161E2E)
+                                : const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: isDark
+                                  ? const Color(0xFF2A364F)
+                                  : const Color(0xFFCBD5E1),
+                              width: 1,
+                            ),
                           ),
-                          onPressed: toggleDrawer,
+                          child: IconButton(
+                            iconSize: 18,
+                            padding: EdgeInsets.zero,
+                            tooltip: 'Toggle Navigation Menu',
+                            icon: AnimatedIcon(
+                              icon: AnimatedIcons.menu_close,
+                              progress: _controller,
+                              color: isDark
+                                  ? Colors.white
+                                  : const Color(0xFF0F172A),
+                            ),
+                            onPressed: toggleDrawer,
+                          ),
                         ),
                       ),
                       body: GestureDetector(

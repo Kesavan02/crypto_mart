@@ -1,5 +1,3 @@
-import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 
 import '../../../../core/constants/api_endpoints.dart';
@@ -29,36 +27,12 @@ class CryptoRemoteDataSourceImpl implements CryptoRemoteDataSource {
 
   CryptoRemoteDataSourceImpl({required this.client});
 
-  bool get _isTesting =>
-      !kIsWeb && Platform.environment.containsKey('FLUTTER_TEST');
-
   @override
   Future<List<CoinModel>> getCoins({
     String? search,
     String? sortBy,
     String? order,
   }) async {
-    if (_isTesting) {
-      return [
-        const CoinModel(
-          id: 'bitcoin',
-          symbol: 'BTC',
-          name: 'Bitcoin',
-          imageUrl: '',
-          currentPrice: 94520.0,
-          marketCap: 1860450000000.0,
-          marketCapRank: 1,
-          totalVolume: 45200300400.0,
-          priceChangePercentage24h: 3.42,
-          high24h: 96100.0,
-          low24h: 91200.0,
-          circulatingSupply: 19780000.0,
-          maxSupply: 21000000.0,
-          ath: 99800.0,
-          sparkline7d: [91000.0, 94520.0],
-        ),
-      ];
-    }
     try {
       final queryParams = <String, dynamic>{};
       if (search != null && search.isNotEmpty) queryParams['search'] = search;
@@ -72,46 +46,31 @@ class CryptoRemoteDataSourceImpl implements CryptoRemoteDataSource {
 
       if (response.statusCode == 200) {
         final List list = response.data as List;
-        return list.map((json) => CoinModel.fromJson(json)).toList();
+        return list.map((json) => CoinModel.fromJson(json as Map<String, dynamic>)).toList();
       } else {
         throw AppException(
-          message: 'Failed to fetch coins',
+          message: 'Failed to fetch coins from server',
           statusCode: response.statusCode,
         );
       }
     } on DioException catch (e) {
       throw NetworkException(
-        message: e.message ?? 'Network error occurred',
+        message: e.message ?? 'Network error occurred while fetching coins',
         statusCode: e.response?.statusCode,
       );
+    } catch (e) {
+      if (e is AppException) rethrow;
+      throw AppException(message: e.toString());
     }
   }
 
   @override
   Future<CoinDetailModel> getCoinDetail(String coinId) async {
-    if (_isTesting) {
-      return const CoinDetailModel(
-        id: 'bitcoin',
-        symbol: 'BTC',
-        name: 'Bitcoin',
-        imageUrl: '',
-        description: 'Bitcoin description',
-        currentPrice: 94520.0,
-        marketCap: 1860450000000.0,
-        totalVolume: 45200300400.0,
-        priceChangePercentage24h: 3.42,
-        high24h: 96100.0,
-        low24h: 91200.0,
-        circulatingSupply: 19780000.0,
-        maxSupply: 21000000.0,
-        ath: 99800.0,
-      );
-    }
     try {
       final response = await client.get(ApiEndpoints.coinDetail(coinId));
 
       if (response.statusCode == 200) {
-        return CoinDetailModel.fromJson(response.data);
+        return CoinDetailModel.fromJson(response.data as Map<String, dynamic>);
       } else {
         throw AppException(
           message: 'Failed to fetch coin detail for $coinId',
@@ -120,9 +79,12 @@ class CryptoRemoteDataSourceImpl implements CryptoRemoteDataSource {
       }
     } on DioException catch (e) {
       throw NetworkException(
-        message: e.message ?? 'Network error occurred',
+        message: e.message ?? 'Network error occurred while fetching coin details',
         statusCode: e.response?.statusCode,
       );
+    } catch (e) {
+      if (e is AppException) rethrow;
+      throw AppException(message: e.toString());
     }
   }
 
@@ -131,13 +93,6 @@ class CryptoRemoteDataSourceImpl implements CryptoRemoteDataSource {
     String coinId, {
     int days = 7,
   }) async {
-    if (_isTesting) {
-      final now = DateTime.now();
-      return [
-        ChartPointModel(timestamp: now, price: 91000.0),
-        ChartPointModel(timestamp: now, price: 94520.0),
-      ];
-    }
     try {
       final response = await client.get(
         ApiEndpoints.coinChart(coinId, days: days),
@@ -156,29 +111,22 @@ class CryptoRemoteDataSourceImpl implements CryptoRemoteDataSource {
       }
     } on DioException catch (e) {
       throw NetworkException(
-        message: e.message ?? 'Network error occurred',
+        message: e.message ?? 'Network error occurred while fetching chart points',
         statusCode: e.response?.statusCode,
       );
+    } catch (e) {
+      if (e is AppException) rethrow;
+      throw AppException(message: e.toString());
     }
   }
 
   @override
   Future<MarketStatsModel> getMarketStats() async {
-    if (_isTesting) {
-      return const MarketStatsModel(
-        totalMarketCapUsd: 3420500800300.0,
-        totalVolume24hUsd: 145200300400.0,
-        btcDominance: 54.4,
-        ethDominance: 12.1,
-        activeCryptocurrencies: 14820,
-        marketCapChangePercentage24h: 2.85,
-      );
-    }
     try {
       final response = await client.get(ApiEndpoints.marketStats);
 
       if (response.statusCode == 200) {
-        return MarketStatsModel.fromJson(response.data);
+        return MarketStatsModel.fromJson(response.data as Map<String, dynamic>);
       } else {
         throw AppException(
           message: 'Failed to fetch market stats',
@@ -187,9 +135,12 @@ class CryptoRemoteDataSourceImpl implements CryptoRemoteDataSource {
       }
     } on DioException catch (e) {
       throw NetworkException(
-        message: e.message ?? 'Network error occurred',
+        message: e.message ?? 'Network error occurred while fetching market stats',
         statusCode: e.response?.statusCode,
       );
+    } catch (e) {
+      if (e is AppException) rethrow;
+      throw AppException(message: e.toString());
     }
   }
 }

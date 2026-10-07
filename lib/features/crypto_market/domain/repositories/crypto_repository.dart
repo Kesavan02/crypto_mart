@@ -1,26 +1,26 @@
-import '../../../../core/errors/failures.dart';
+import '../../../../core/errors/result.dart';
 import '../entities/chart_point_entity.dart';
 import '../entities/coin_detail_entity.dart';
 import '../entities/coin_entity.dart';
 import '../entities/market_stats_entity.dart';
 
 abstract class CryptoRepository {
-  Future<({Failure? failure, List<CoinEntity>? coins})> getCoins({
+  Future<Result<List<CoinEntity>>> getCoins({
     String? search,
     String? sortBy,
     String? order,
   });
 
-  Future<({Failure? failure, CoinDetailEntity? coinDetail})> getCoinDetail(
+  Future<Result<CoinDetailEntity>> getCoinDetail(
     String coinId,
   );
 
-  Future<({Failure? failure, List<ChartPointEntity>? chartPoints})> getCoinChart(
+  Future<Result<List<ChartPointEntity>>> getCoinChart(
     String coinId, {
     int days = 7,
   });
 
-  Future<({Failure? failure, MarketStatsEntity? marketStats})> getMarketStats();
+  Future<Result<MarketStatsEntity>> getMarketStats();
 
   Future<List<String>> getWatchlistIds();
 

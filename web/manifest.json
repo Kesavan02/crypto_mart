@@ -1,11 +1,11 @@
 {
-    "name": "crypto_mart",
-    "short_name": "crypto_mart",
+    "name": "CryptoMart",
+    "short_name": "CryptoMart",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#0B0E14",
+    "theme_color": "#0052FF",
+    "description": "Real-time cryptocurrency tracking and market intelligence platform.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

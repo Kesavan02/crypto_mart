@@ -5,6 +5,7 @@ import 'package:crypto_mart/features/settings/presentation/state/settings_cubit.
 import '../../../../core/constants/app_colors.dart';
 import '../../domain/entities/coin_entity.dart';
 import '../state/watchlist_cubit.dart';
+import 'coin_icon.dart';
 
 class CoinListItem extends StatelessWidget {
   final CoinEntity coin;
@@ -66,27 +67,10 @@ class CoinListItem extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              ClipOval(
-                child: Image.network(
-                  coin.imageUrl,
-                  width: 36,
-                  height: 36,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    width: 36,
-                    height: 36,
-                    color: AppColors.primaryBlue.withValues(alpha: 0.2),
-                    child: Center(
-                      child: Text(
-                        coin.symbol.substring(0, 1),
-                        style: const TextStyle(
-                          color: AppColors.primaryBlue,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
+              CoinIcon(
+                imageUrl: coin.imageUrl,
+                symbol: coin.symbol,
+                size: 36,
               ),
             ],
           ),

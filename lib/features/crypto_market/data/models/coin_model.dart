@@ -26,26 +26,50 @@ class CoinModel extends CoinEntity {
       sparkline = (json['sparkline_in_7d']['price'] as List)
           .map((e) => (e as num).toDouble())
           .toList();
+    } else if (json['sparkline7d'] != null) {
+      sparkline = (json['sparkline7d'] as List)
+          .map((e) => (e as num).toDouble())
+          .toList();
     }
 
     return CoinModel(
       id: json['id'] ?? '',
       symbol: (json['symbol'] ?? '').toString().toUpperCase(),
       name: json['name'] ?? '',
-      imageUrl: json['image'] ?? '',
-      currentPrice: (json['current_price'] as num?)?.toDouble() ?? 0.0,
-      marketCap: (json['market_cap'] as num?)?.toDouble() ?? 0.0,
-      marketCapRank: (json['market_cap_rank'] as num?)?.toInt() ?? 0,
-      totalVolume: (json['total_volume'] as num?)?.toDouble() ?? 0.0,
+      imageUrl: json['image'] ?? json['imageUrl'] ?? '',
+      currentPrice: (json['current_price'] ?? json['currentPrice'] as num?)?.toDouble() ?? 0.0,
+      marketCap: (json['market_cap'] ?? json['marketCap'] as num?)?.toDouble() ?? 0.0,
+      marketCapRank: (json['market_cap_rank'] ?? json['marketCapRank'] as num?)?.toInt() ?? 0,
+      totalVolume: (json['total_volume'] ?? json['totalVolume'] as num?)?.toDouble() ?? 0.0,
       priceChangePercentage24h:
-          (json['price_change_percentage_24h'] as num?)?.toDouble() ?? 0.0,
-      high24h: (json['high_24h'] as num?)?.toDouble() ?? 0.0,
-      low24h: (json['low_24h'] as num?)?.toDouble() ?? 0.0,
+          (json['price_change_percentage_24h'] ?? json['priceChangePercentage24h'] as num?)?.toDouble() ?? 0.0,
+      high24h: (json['high_24h'] ?? json['high24h'] as num?)?.toDouble() ?? 0.0,
+      low24h: (json['low_24h'] ?? json['low24h'] as num?)?.toDouble() ?? 0.0,
       circulatingSupply:
-          (json['circulating_supply'] as num?)?.toDouble() ?? 0.0,
-      maxSupply: (json['max_supply'] as num?)?.toDouble(),
+          (json['circulating_supply'] ?? json['circulatingSupply'] as num?)?.toDouble() ?? 0.0,
+      maxSupply: (json['max_supply'] ?? json['maxSupply'] as num?)?.toDouble(),
       ath: (json['ath'] as num?)?.toDouble() ?? 0.0,
       sparkline7d: sparkline,
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'symbol': symbol,
+      'name': name,
+      'imageUrl': imageUrl,
+      'currentPrice': currentPrice,
+      'marketCap': marketCap,
+      'marketCapRank': marketCapRank,
+      'totalVolume': totalVolume,
+      'priceChangePercentage24h': priceChangePercentage24h,
+      'high24h': high24h,
+      'low24h': low24h,
+      'circulatingSupply': circulatingSupply,
+      'maxSupply': maxSupply,
+      'ath': ath,
+      'sparkline7d': sparkline7d,
+    };
   }
 }

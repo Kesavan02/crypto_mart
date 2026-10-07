@@ -1,4 +1,4 @@
-import '../../../../core/errors/failures.dart';
+import '../../../../core/errors/result.dart';
 import '../entities/chart_point_entity.dart';
 import '../repositories/crypto_repository.dart';
 
@@ -7,7 +7,7 @@ class GetCoinChartUseCase {
 
   const GetCoinChartUseCase(this.repository);
 
-  Future<({Failure? failure, List<ChartPointEntity>? chartPoints})> call(
+  Future<Result<List<ChartPointEntity>>> call(
     String coinId, {
     int days = 7,
   }) {

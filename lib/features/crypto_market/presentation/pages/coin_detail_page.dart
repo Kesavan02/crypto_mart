@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:crypto_mart/features/settings/presentation/state/settings_cubit.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/di/injection_container.dart';
 import '../../../../core/utils/responsive_layout.dart';
 import '../../domain/entities/coin_entity.dart';
 import '../state/coin_detail_bloc.dart';
@@ -12,8 +13,9 @@ import '../widgets/error_state_widget.dart';
 import '../widgets/glassmorphic_card.dart';
 import '../widgets/loading_state_widget.dart';
 import '../widgets/price_chart.dart';
+import '../widgets/coin_icon.dart';
 
-class CoinDetailPage extends StatefulWidget {
+class CoinDetailPage extends StatelessWidget {
   final CoinEntity? coinEntity;
   final String? coinId;
   final bool? showAppBar;
@@ -26,31 +28,37 @@ class CoinDetailPage extends StatefulWidget {
   });
 
   @override
-  State<CoinDetailPage> createState() => _CoinDetailPageState();
+  Widget build(BuildContext context) {
+    final targetId = coinId ?? coinEntity?.id ?? 'bitcoin';
+    return BlocProvider<CoinDetailBloc>(
+      key: ValueKey('coin_detail_$targetId'),
+      create: (_) => sl<CoinDetailBloc>()
+        ..add(FetchCoinDetailEvent(coinId: targetId)),
+      child: _CoinDetailView(
+        coinEntity: coinEntity,
+        coinId: targetId,
+        showAppBar: showAppBar,
+      ),
+    );
+  }
 }
 
-class _CoinDetailPageState extends State<CoinDetailPage> {
-  late String _targetId;
+class _CoinDetailView extends StatefulWidget {
+  final CoinEntity? coinEntity;
+  final String coinId;
+  final bool? showAppBar;
+
+  const _CoinDetailView({
+    this.coinEntity,
+    required this.coinId,
+    this.showAppBar,
+  });
 
   @override
-  void initState() {
-    super.initState();
-    _targetId = widget.coinId ?? widget.coinEntity?.id ?? 'bitcoin';
-    context.read<CoinDetailBloc>().add(FetchCoinDetailEvent(coinId: _targetId));
-  }
+  State<_CoinDetailView> createState() => _CoinDetailViewState();
+}
 
-  @override
-  void didUpdateWidget(CoinDetailPage oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    final newTargetId = widget.coinId ?? widget.coinEntity?.id ?? 'bitcoin';
-    if (newTargetId != _targetId) {
-      _targetId = newTargetId;
-      context.read<CoinDetailBloc>().add(
-        FetchCoinDetailEvent(coinId: _targetId),
-      );
-    }
-  }
-
+class _CoinDetailViewState extends State<_CoinDetailView> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -72,22 +80,51 @@ class _CoinDetailPageState extends State<CoinDetailPage> {
       appBar: shouldShowAppBar
           ? CustomRoundedAppBar(
               title: widget.coinEntity?.name ?? 'Coin Details',
+              showBrand: false,
+              showLiveIndicator: false,
               actions: [
                 BlocBuilder<WatchlistCubit, WatchlistState>(
                   builder: (context, state) {
-                    final isStarred = state.isWatched(_targetId);
-                    return IconButton(
-                      icon: Icon(
-                        isStarred
-                            ? Icons.star_rounded
-                            : Icons.star_border_rounded,
-                        color: isStarred ? Colors.amber : Colors.white,
+                    final isStarred = state.isWatched(widget.coinId);
+                    return Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? const Color(0xFF161E2E)
+                            : const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: isDark
+                              ? const Color(0xFF2A364F)
+                              : const Color(0xFFCBD5E1),
+                          width: 1,
+                        ),
                       ),
-                      onPressed: () {
-                        context.read<WatchlistCubit>().toggleWatchlist(
-                          _targetId,
-                        );
-                      },
+                      child: IconButton(
+                        iconSize: 18,
+                        padding: EdgeInsets.zero,
+                        tooltip: isStarred
+                            ? 'Remove from Watchlist'
+                            : 'Add to Watchlist',
+                        icon: Icon(
+                          isStarred
+                              ? Icons.star_rounded
+                              : Icons.star_border_rounded,
+                          color: isStarred
+                              ? const Color(0xFFFFD600)
+                              : (isDark
+                                  ? Colors.white
+                                  : AppColors.textPrimaryLight),
+                          size: 18,
+                        ),
+                        onPressed: () {
+                          context.read<WatchlistCubit>().toggleWatchlist(
+                                widget.coinId,
+                              );
+                        },
+                      ),
                     );
                   },
                 ),
@@ -107,8 +144,8 @@ class _CoinDetailPageState extends State<CoinDetailPage> {
               errorMessage: state.errorMessage,
               onRetry: () {
                 context.read<CoinDetailBloc>().add(
-                  FetchCoinDetailEvent(coinId: _targetId),
-                );
+                      FetchCoinDetailEvent(coinId: widget.coinId),
+                    );
               },
             );
           }
@@ -116,9 +153,8 @@ class _CoinDetailPageState extends State<CoinDetailPage> {
           if (state is CoinDetailLoadedState) {
             final detail = state.coinDetail;
             final isPositive = detail.priceChangePercentage24h >= 0;
-            final changeColor = isPositive
-                ? AppColors.gainGreen
-                : AppColors.lossRed;
+            final changeColor =
+                isPositive ? AppColors.gainGreen : AppColors.lossRed;
 
             return SingleChildScrollView(
               padding: const EdgeInsets.all(16),
@@ -127,19 +163,10 @@ class _CoinDetailPageState extends State<CoinDetailPage> {
                 children: [
                   Row(
                     children: [
-                      ClipOval(
-                        child: Image.network(
-                          detail.imageUrl,
-                          width: 48,
-                          height: 48,
-                          errorBuilder: (context, error, stackTrace) => Icon(
-                            Icons.monetization_on_rounded,
-                            size: 48,
-                            color: isDark
-                                ? AppColors.accentCyanBright
-                                : AppColors.primaryBlue,
-                          ),
-                        ),
+                      CoinIcon(
+                        imageUrl: detail.imageUrl,
+                        symbol: detail.symbol,
+                        size: 48,
                       ),
                       const SizedBox(width: 16),
                       Expanded(
@@ -208,7 +235,7 @@ class _CoinDetailPageState extends State<CoinDetailPage> {
                         const SizedBox(width: 8),
                         BlocBuilder<WatchlistCubit, WatchlistState>(
                           builder: (context, state) {
-                            final isStarred = state.isWatched(_targetId);
+                            final isStarred = state.isWatched(widget.coinId);
                             return IconButton(
                               icon: Icon(
                                 isStarred
@@ -221,8 +248,8 @@ class _CoinDetailPageState extends State<CoinDetailPage> {
                               ),
                               onPressed: () {
                                 context.read<WatchlistCubit>().toggleWatchlist(
-                                  _targetId,
-                                );
+                                      widget.coinId,
+                                    );
                               },
                             );
                           },
@@ -251,11 +278,11 @@ class _CoinDetailPageState extends State<CoinDetailPage> {
                           isChartLoading: state.isChartLoading,
                           onDaysSelected: (days) {
                             context.read<CoinDetailBloc>().add(
-                              FetchCoinDetailEvent(
-                                coinId: _targetId,
-                                days: days,
-                              ),
-                            );
+                                  FetchCoinDetailEvent(
+                                    coinId: widget.coinId,
+                                    days: days,
+                                  ),
+                                );
                           },
                         ),
                       ],

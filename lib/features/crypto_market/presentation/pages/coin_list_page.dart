@@ -18,12 +18,32 @@ class CoinListPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        SearchFilterBar(
-          onSearchChanged: (query) {
-            context.read<CryptoListBloc>().add(FetchCryptoListEvent(search: query));
-          },
-          onSortChanged: (sortBy) {
-            context.read<CryptoListBloc>().add(FetchCryptoListEvent(sortBy: sortBy));
+        BlocBuilder<CryptoListBloc, CryptoListState>(
+          buildWhen: (prev, curr) => false, // Initial query/sort values
+          builder: (context, state) {
+            String initialSearch = '';
+            String initialSort = 'market_cap';
+            if (state is CryptoListLoadedState) {
+              initialSearch = state.currentSearch;
+              initialSort = state.currentSortBy;
+            } else if (state is CryptoListEmptyState) {
+              initialSearch = state.currentSearch;
+              initialSort = state.currentSortBy;
+            }
+            return SearchFilterBar(
+              initialSearch: initialSearch,
+              initialSort: initialSort,
+              onSearchChanged: (query) {
+                context
+                    .read<CryptoListBloc>()
+                    .add(FetchCryptoListEvent(search: query));
+              },
+              onSortChanged: (sortBy) {
+                context
+                    .read<CryptoListBloc>()
+                    .add(FetchCryptoListEvent(sortBy: sortBy));
+              },
+            );
           },
         ),
         Expanded(
@@ -37,7 +57,9 @@ class CoinListPage extends StatelessWidget {
                 return ErrorStateWidget(
                   errorMessage: state.errorMessage,
                   onRetry: () {
-                    context.read<CryptoListBloc>().add(const FetchCryptoListEvent());
+                    context
+                        .read<CryptoListBloc>()
+                        .add(const FetchCryptoListEvent());
                   },
                 );
               }
@@ -52,7 +74,9 @@ class CoinListPage extends StatelessWidget {
               if (state is CryptoListLoadedState) {
                 return RefreshIndicator(
                   onRefresh: () async {
-                    context.read<CryptoListBloc>().add(const FetchCryptoListEvent());
+                    context
+                        .read<CryptoListBloc>()
+                        .add(const FetchCryptoListEvent(isSilent: true));
                   },
                   child: ListView.builder(
                     itemCount: state.coins.length,

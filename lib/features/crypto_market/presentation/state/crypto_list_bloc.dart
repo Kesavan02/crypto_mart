@@ -15,11 +15,17 @@ class FetchCryptoListEvent extends CryptoListEvent {
   final String? search;
   final String? sortBy;
   final String? order;
+  final bool isSilent;
 
-  const FetchCryptoListEvent({this.search, this.sortBy, this.order});
+  const FetchCryptoListEvent({
+    this.search,
+    this.sortBy,
+    this.order,
+    this.isSilent = false,
+  });
 
   @override
-  List<Object?> get props => [search, sortBy, order];
+  List<Object?> get props => [search, sortBy, order, isSilent];
 }
 
 abstract class CryptoListState extends Equatable {
@@ -35,26 +41,49 @@ class CryptoListLoadingState extends CryptoListState {}
 
 class CryptoListLoadedState extends CryptoListState {
   final List<CoinEntity> coins;
-  final String? currentSearch;
-  final String? currentSortBy;
+  final String currentSearch;
+  final String currentSortBy;
+  final bool isRefreshing;
 
   const CryptoListLoadedState({
     required this.coins,
-    this.currentSearch,
-    this.currentSortBy,
+    this.currentSearch = '',
+    this.currentSortBy = 'market_cap',
+    this.isRefreshing = false,
   });
 
+  CryptoListLoadedState copyWith({
+    List<CoinEntity>? coins,
+    String? currentSearch,
+    String? currentSortBy,
+    bool? isRefreshing,
+  }) {
+    return CryptoListLoadedState(
+      coins: coins ?? this.coins,
+      currentSearch: currentSearch ?? this.currentSearch,
+      currentSortBy: currentSortBy ?? this.currentSortBy,
+      isRefreshing: isRefreshing ?? this.isRefreshing,
+    );
+  }
+
   @override
-  List<Object?> get props => [coins, currentSearch, currentSortBy];
+  List<Object?> get props =>
+      [coins, currentSearch, currentSortBy, isRefreshing];
 }
 
 class CryptoListEmptyState extends CryptoListState {
   final String message;
+  final String currentSearch;
+  final String currentSortBy;
 
-  const CryptoListEmptyState({required this.message});
+  const CryptoListEmptyState({
+    required this.message,
+    this.currentSearch = '',
+    this.currentSortBy = 'market_cap',
+  });
 
   @override
-  List<Object?> get props => [message];
+  List<Object?> get props => [message, currentSearch, currentSortBy];
 }
 
 class CryptoListErrorState extends CryptoListState {
@@ -69,6 +98,9 @@ class CryptoListErrorState extends CryptoListState {
 class CryptoListBloc extends Bloc<CryptoListEvent, CryptoListState> {
   final GetCoinsUseCase getCoinsUseCase;
 
+  String _searchQuery = '';
+  String _sortBy = 'market_cap';
+
   CryptoListBloc({required this.getCoinsUseCase})
       : super(CryptoListInitialState()) {
     on<FetchCryptoListEvent>(_onFetchCoins);
@@ -78,28 +110,52 @@ class CryptoListBloc extends Bloc<CryptoListEvent, CryptoListState> {
     FetchCryptoListEvent event,
     Emitter<CryptoListState> emit,
   ) async {
-    emit(CryptoListLoadingState());
+    if (event.search != null) _searchQuery = event.search!;
+    if (event.sortBy != null) _sortBy = event.sortBy!;
+
+    if (!event.isSilent && state is! CryptoListLoadedState) {
+      emit(CryptoListLoadingState());
+    } else if (state is CryptoListLoadedState) {
+      final currentLoaded = state as CryptoListLoadedState;
+      emit(currentLoaded.copyWith(
+        isRefreshing: true,
+        currentSearch: _searchQuery,
+        currentSortBy: _sortBy,
+      ));
+    }
 
     final result = await getCoinsUseCase(
-      search: event.search,
-      sortBy: event.sortBy,
+      search: _searchQuery,
+      sortBy: _sortBy,
       order: event.order,
     );
 
-    if (result.failure != null) {
-      emit(CryptoListErrorState(
-        errorMessage: result.failure!.message,
-      ));
-    } else if (result.coins == null || result.coins!.isEmpty) {
-      emit(const CryptoListEmptyState(
-        message: 'No cryptocurrency assets found matching your search criteria.',
-      ));
-    } else {
-      emit(CryptoListLoadedState(
-        coins: result.coins!,
-        currentSearch: event.search,
-        currentSortBy: event.sortBy,
-      ));
-    }
+    result.fold(
+      onSuccess: (coins) {
+        if (coins.isEmpty) {
+          emit(CryptoListEmptyState(
+            message:
+                'No cryptocurrency assets found matching your search criteria.',
+            currentSearch: _searchQuery,
+            currentSortBy: _sortBy,
+          ));
+        } else {
+          emit(CryptoListLoadedState(
+            coins: coins,
+            currentSearch: _searchQuery,
+            currentSortBy: _sortBy,
+            isRefreshing: false,
+          ));
+        }
+      },
+      onFailure: (failure) {
+        if (state is CryptoListLoadedState) {
+          final currentLoaded = state as CryptoListLoadedState;
+          emit(currentLoaded.copyWith(isRefreshing: false));
+        } else {
+          emit(CryptoListErrorState(errorMessage: failure.message));
+        }
+      },
+    );
   }
 }

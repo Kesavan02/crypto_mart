@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_colors.dart';
@@ -5,11 +6,15 @@ import '../../../../core/constants/app_colors.dart';
 class SearchFilterBar extends StatefulWidget {
   final ValueChanged<String> onSearchChanged;
   final ValueChanged<String?> onSortChanged;
+  final String initialSearch;
+  final String initialSort;
 
   const SearchFilterBar({
     super.key,
     required this.onSearchChanged,
     required this.onSortChanged,
+    this.initialSearch = '',
+    this.initialSort = 'market_cap',
   });
 
   @override
@@ -17,13 +22,29 @@ class SearchFilterBar extends StatefulWidget {
 }
 
 class _SearchFilterBarState extends State<SearchFilterBar> {
-  final TextEditingController _searchController = TextEditingController();
-  String _selectedSort = 'market_cap';
+  late final TextEditingController _searchController;
+  late String _selectedSort;
+  Timer? _debounceTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController = TextEditingController(text: widget.initialSearch);
+    _selectedSort = widget.initialSort;
+  }
 
   @override
   void dispose() {
+    _debounceTimer?.cancel();
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _onTextChanged(String text) {
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+      widget.onSearchChanged(text);
+    });
   }
 
   @override
@@ -62,7 +83,10 @@ class _SearchFilterBarState extends State<SearchFilterBar> {
               child: TextField(
                 controller: _searchController,
                 style: TextStyle(color: textColor, fontSize: 14),
-                onChanged: widget.onSearchChanged,
+                onChanged: (text) {
+                  setState(() {});
+                  _onTextChanged(text);
+                },
                 decoration: InputDecoration(
                   hintText: 'Search crypto (e.g. BTC, Solana)...',
                   hintStyle: TextStyle(
@@ -82,7 +106,9 @@ class _SearchFilterBarState extends State<SearchFilterBar> {
                             size: 18,
                           ),
                           onPressed: () {
+                            _debounceTimer?.cancel();
                             _searchController.clear();
+                            setState(() {});
                             widget.onSearchChanged('');
                           },
                         )

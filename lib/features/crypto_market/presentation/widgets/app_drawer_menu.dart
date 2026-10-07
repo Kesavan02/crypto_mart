@@ -269,15 +269,23 @@ class _AppDrawerMenuState extends State<AppDrawerMenu> {
               ),
             ],
           ),
-          child: CircleAvatar(
-            radius: 24,
-            backgroundColor: isDark ? AppColors.cardDark : Colors.white,
-            child: Icon(
-              Icons.currency_bitcoin_rounded,
-              color: isDark
-                  ? AppColors.accentCyanBright
-                  : AppColors.primaryBlue,
-              size: 26,
+          child: ClipOval(
+            child: Image.asset(
+              'assets/images/crypto_mart_logo.png',
+              width: 48,
+              height: 48,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => CircleAvatar(
+                radius: 24,
+                backgroundColor: isDark ? AppColors.cardDark : Colors.white,
+                child: Icon(
+                  Icons.currency_bitcoin_rounded,
+                  color: isDark
+                      ? AppColors.accentCyanBright
+                      : AppColors.primaryBlue,
+                  size: 26,
+                ),
+              ),
             ),
           ),
         ),

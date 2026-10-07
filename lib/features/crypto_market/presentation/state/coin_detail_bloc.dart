@@ -62,7 +62,8 @@ class CoinDetailLoadedState extends CoinDetailState {
   }
 
   @override
-  List<Object?> get props => [coinDetail, chartPoints, selectedDays, isChartLoading];
+  List<Object?> get props =>
+      [coinDetail, chartPoints, selectedDays, isChartLoading];
 }
 
 class CoinDetailErrorState extends CoinDetailState {
@@ -89,7 +90,7 @@ class CoinDetailBloc extends Bloc<CoinDetailEvent, CoinDetailState> {
     FetchCoinDetailEvent event,
     Emitter<CoinDetailState> emit,
   ) async {
-    // If already loaded for the SAME coin, update ONLY the chart without reloading the whole page UI
+    // If already loaded for the SAME coin, update ONLY the chart without reloading full UI
     if (state is CoinDetailLoadedState) {
       final currentState = state as CoinDetailLoadedState;
       if (currentState.coinDetail.id.toLowerCase() == event.coinId.toLowerCase()) {
@@ -98,34 +99,38 @@ class CoinDetailBloc extends Bloc<CoinDetailEvent, CoinDetailState> {
           selectedDays: event.days,
         ));
 
-        final chartResult = await getCoinChartUseCase(event.coinId, days: event.days);
+        final chartResult =
+            await getCoinChartUseCase(event.coinId, days: event.days);
 
+        final points = chartResult.dataOrNull ?? <ChartPointEntity>[];
         emit(currentState.copyWith(
           isChartLoading: false,
-          chartPoints: chartResult.chartPoints ?? <ChartPointEntity>[],
+          chartPoints: points,
           selectedDays: event.days,
         ));
         return;
       }
     }
 
-    // First time load: emit full page loading state
+    // First time load for this coin instance
     emit(CoinDetailLoadingState());
 
     final detailResult = await getCoinDetailUseCase(event.coinId);
     final chartResult = await getCoinChartUseCase(event.coinId, days: event.days);
 
-    if (detailResult.failure != null) {
-      emit(CoinDetailErrorState(errorMessage: detailResult.failure!.message));
-    } else if (detailResult.coinDetail == null) {
-      emit(const CoinDetailErrorState(errorMessage: 'Coin detail unavailable.'));
-    } else {
-      emit(CoinDetailLoadedState(
-        coinDetail: detailResult.coinDetail!,
-        chartPoints: chartResult.chartPoints ?? <ChartPointEntity>[],
-        selectedDays: event.days,
-        isChartLoading: false,
-      ));
-    }
+    detailResult.fold(
+      onSuccess: (detail) {
+        final points = chartResult.dataOrNull ?? <ChartPointEntity>[];
+        emit(CoinDetailLoadedState(
+          coinDetail: detail,
+          chartPoints: points,
+          selectedDays: event.days,
+          isChartLoading: false,
+        ));
+      },
+      onFailure: (failure) {
+        emit(CoinDetailErrorState(errorMessage: failure.message));
+      },
+    );
   }
 }

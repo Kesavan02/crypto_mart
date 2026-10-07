@@ -1,4 +1,4 @@
-import '../../../../core/errors/failures.dart';
+import '../../../../core/errors/result.dart';
 import '../entities/coin_entity.dart';
 import '../repositories/crypto_repository.dart';
 
@@ -7,7 +7,7 @@ class GetCoinsUseCase {
 
   const GetCoinsUseCase(this.repository);
 
-  Future<({Failure? failure, List<CoinEntity>? coins})> call({
+  Future<Result<List<CoinEntity>>> call({
     String? search,
     String? sortBy,
     String? order,

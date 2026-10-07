@@ -3,29 +3,18 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-
-import 'core/network/dio_client.dart';
-import 'core/theme/app_theme.dart';
-import 'core/widgets/app_update_gate.dart';
-import 'features/crypto_market/data/datasources/crypto_local_data_source.dart';
-import 'features/crypto_market/data/datasources/crypto_remote_data_source.dart';
-import 'features/crypto_market/data/repositories/crypto_repository_impl.dart';
-import 'features/crypto_market/domain/entities/coin_entity.dart';
-import 'features/crypto_market/domain/usecases/get_coin_chart_usecase.dart';
-import 'features/crypto_market/domain/usecases/get_coin_detail_usecase.dart';
-import 'features/crypto_market/domain/usecases/get_coins_usecase.dart';
-import 'features/crypto_market/domain/usecases/get_watchlist_usecase.dart';
-import 'features/crypto_market/domain/usecases/toggle_watchlist_usecase.dart';
-import 'features/crypto_market/presentation/pages/coin_detail_page.dart';
-import 'features/crypto_market/presentation/pages/main_navigation_page.dart';
-import 'features/crypto_market/presentation/state/coin_detail_bloc.dart';
-import 'features/crypto_market/presentation/state/crypto_list_bloc.dart';
-import 'features/crypto_market/presentation/state/watchlist_cubit.dart';
-import 'firebase_options.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 
+import 'core/di/injection_container.dart';
+import 'core/theme/app_theme.dart';
+import 'features/crypto_market/domain/entities/coin_entity.dart';
+import 'features/crypto_market/presentation/pages/coin_detail_page.dart';
+import 'features/crypto_market/presentation/pages/initial_splash_screen.dart';
+import 'features/crypto_market/presentation/state/crypto_list_bloc.dart';
+import 'features/crypto_market/presentation/state/watchlist_cubit.dart';
 import 'features/settings/presentation/state/settings_cubit.dart';
+import 'firebase_options.dart';
 
 void main() {
   runZonedGuarded<Future<void>>(
@@ -62,20 +51,10 @@ void main() {
         };
       }
 
-      final dioClient = DioClient();
-      final remoteDataSource =
-          CryptoRemoteDataSourceImpl(client: dioClient.instance);
-      final localDataSource = CryptoLocalDataSourceImpl();
-      final repository = CryptoRepositoryImpl(
-        remoteDataSource: remoteDataSource,
-        localDataSource: localDataSource,
-      );
+      // Initialize GetIt dependency injection
+      await initDependencies();
 
-      runApp(
-        CryptoMartApp(
-          repository: repository,
-        ),
-      );
+      runApp(const CryptoMartApp());
     },
     (Object error, StackTrace stackTrace) {
       final isCrashlyticsSupported = !kIsWeb &&
@@ -95,36 +74,20 @@ void main() {
 }
 
 class CryptoMartApp extends StatelessWidget {
-  final CryptoRepositoryImpl repository;
-
-  const CryptoMartApp({
-    super.key,
-    required this.repository,
-  });
+  const CryptoMartApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MultiBlocProvider(
       providers: [
         BlocProvider<SettingsCubit>(
-          create: (_) => SettingsCubit()..loadSettings(),
+          create: (_) => sl<SettingsCubit>()..loadSettings(),
         ),
         BlocProvider<CryptoListBloc>(
-          create: (_) => CryptoListBloc(
-            getCoinsUseCase: GetCoinsUseCase(repository),
-          ),
-        ),
-        BlocProvider<CoinDetailBloc>(
-          create: (_) => CoinDetailBloc(
-            getCoinDetailUseCase: GetCoinDetailUseCase(repository),
-            getCoinChartUseCase: GetCoinChartUseCase(repository),
-          ),
+          create: (_) => sl<CryptoListBloc>(),
         ),
         BlocProvider<WatchlistCubit>(
-          create: (_) => WatchlistCubit(
-            getWatchlistUseCase: GetWatchlistUseCase(repository),
-            toggleWatchlistUseCase: ToggleWatchlistUseCase(repository),
-          ),
+          create: (_) => sl<WatchlistCubit>(),
         ),
       ],
       child: BlocBuilder<SettingsCubit, SettingsState>(
@@ -147,9 +110,7 @@ class CryptoMartApp extends StatelessWidget {
               }
               return null;
             },
-            home: const AppUpdateGate(
-              child: MainNavigationPage(),
-            ),
+            home: const InitialSplashScreen(),
           );
         },
       ),

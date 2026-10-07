@@ -1,62 +1,56 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import 'package:crypto_mart/features/settings/presentation/state/settings_cubit.dart';
 import '../../../../core/constants/app_colors.dart';
-import '../../../../core/network/dio_client.dart';
-import '../../data/datasources/crypto_remote_data_source.dart';
-import '../../data/models/market_stats_model.dart';
+import '../../../../core/di/injection_container.dart';
+import '../../../settings/presentation/state/settings_cubit.dart';
+import '../state/market_stats_bloc.dart';
 import '../widgets/error_state_widget.dart';
 import '../widgets/loading_state_widget.dart';
 import '../widgets/market_stat_card.dart';
 
-class MarketStatsPage extends StatefulWidget {
+class MarketStatsPage extends StatelessWidget {
   const MarketStatsPage({super.key});
 
   @override
-  State<MarketStatsPage> createState() => _MarketStatsPageState();
+  Widget build(BuildContext context) {
+    return BlocProvider<MarketStatsBloc>(
+      create: (_) => sl<MarketStatsBloc>()..add(const FetchMarketStatsEvent()),
+      child: const _MarketStatsView(),
+    );
+  }
 }
 
-class _MarketStatsPageState extends State<MarketStatsPage> {
-  late final CryptoRemoteDataSource _dataSource;
-  Future<MarketStatsModel>? _statsFuture;
-
-  @override
-  void initState() {
-    super.initState();
-    _dataSource = CryptoRemoteDataSourceImpl(client: DioClient().instance);
-    _loadStats();
-  }
-
-  void _loadStats() {
-    setState(() {
-      _statsFuture = _dataSource.getMarketStats();
-    });
-  }
+class _MarketStatsView extends StatelessWidget {
+  const _MarketStatsView();
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-
     final primaryTextColor = theme.colorScheme.onSurface;
 
-    return FutureBuilder<MarketStatsModel>(
-      future: _statsFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const LoadingStateWidget(message: 'Loading global market metrics...');
-        }
-
-        if (snapshot.hasError) {
-          return ErrorStateWidget(
-            errorMessage: snapshot.error.toString(),
-            onRetry: _loadStats,
+    return BlocBuilder<MarketStatsBloc, MarketStatsState>(
+      builder: (context, state) {
+        if (state is MarketStatsLoadingState) {
+          return const LoadingStateWidget(
+            message: 'Loading global market metrics...',
           );
         }
 
-        if (snapshot.hasData) {
-          final stats = snapshot.data!;
+        if (state is MarketStatsErrorState) {
+          return ErrorStateWidget(
+            errorMessage: state.message,
+            onRetry: () {
+              context
+                  .read<MarketStatsBloc>()
+                  .add(const FetchMarketStatsEvent());
+            },
+          );
+        }
+
+        if (state is MarketStatsLoadedState) {
+          final stats = state.stats;
           final isPositive = stats.marketCapChangePercentage24h >= 0;
 
           return SingleChildScrollView(
@@ -67,8 +61,10 @@ class _MarketStatsPageState extends State<MarketStatsPage> {
                 BlocBuilder<SettingsCubit, SettingsState>(
                   builder: (context, settingsState) {
                     final currency = settingsState.selectedCurrency;
-                    final totalMcap = stats.totalMarketCapUsd * currency.rateFromUsd;
-                    final totalVol = stats.totalVolume24hUsd * currency.rateFromUsd;
+                    final totalMcap =
+                        stats.totalMarketCapUsd * currency.rateFromUsd;
+                    final totalVol =
+                        stats.totalVolume24hUsd * currency.rateFromUsd;
 
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -79,15 +75,23 @@ class _MarketStatsPageState extends State<MarketStatsPage> {
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
                               colors: isDark
-                                  ? [AppColors.primaryBlue, AppColors.surfaceDark]
-                                  : [AppColors.primaryBlue, AppColors.primaryBlue.withValues(alpha: 0.85)],
+                                  ? [
+                                      AppColors.primaryBlue,
+                                      AppColors.surfaceDark
+                                    ]
+                                  : [
+                                      AppColors.primaryBlue,
+                                      AppColors.primaryBlue
+                                          .withValues(alpha: 0.85)
+                                    ],
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                             ),
                             borderRadius: BorderRadius.circular(20),
                             boxShadow: [
                               BoxShadow(
-                                color: AppColors.primaryBlue.withValues(alpha: 0.3),
+                                color: AppColors.primaryBlue
+                                    .withValues(alpha: 0.3),
                                 blurRadius: 16,
                                 offset: const Offset(0, 6),
                               ),
@@ -119,14 +123,18 @@ class _MarketStatsPageState extends State<MarketStatsPage> {
                                     isPositive
                                         ? Icons.trending_up_rounded
                                         : Icons.trending_down_rounded,
-                                    color: isPositive ? AppColors.gainGreen : AppColors.lossRed,
+                                    color: isPositive
+                                        ? AppColors.gainGreen
+                                        : AppColors.lossRed,
                                     size: 20,
                                   ),
                                   const SizedBox(width: 4),
                                   Text(
                                     '${isPositive ? '+' : ''}${stats.marketCapChangePercentage24h.toStringAsFixed(2)}% in 24h',
                                     style: TextStyle(
-                                      color: isPositive ? AppColors.gainGreen : AppColors.lossRed,
+                                      color: isPositive
+                                          ? AppColors.gainGreen
+                                          : AppColors.lossRed,
                                       fontWeight: FontWeight.bold,
                                       fontSize: 14,
                                     ),
@@ -164,25 +172,31 @@ class _MarketStatsPageState extends State<MarketStatsPage> {
                               children: [
                                 MarketStatCard(
                                   title: '24h Total Volume',
-                                  value: '${currency.symbol}${_formatBigNumber(totalVol)}',
+                                  value:
+                                      '${currency.symbol}${_formatBigNumber(totalVol)}',
                                   icon: Icons.bar_chart_rounded,
-                                  accentColor: isDark ? AppColors.accentCyanBright : AppColors.primaryBlue,
+                                  accentColor: isDark
+                                      ? AppColors.accentCyanBright
+                                      : AppColors.primaryBlue,
                                 ),
-                                const MarketStatCard(
+                                MarketStatCard(
                                   title: 'Bitcoin Dominance',
-                                  value: '54.4%',
+                                  value:
+                                      '${stats.btcDominance.toStringAsFixed(1)}%',
                                   icon: Icons.currency_bitcoin_rounded,
                                   accentColor: Colors.amber,
                                 ),
-                                const MarketStatCard(
+                                MarketStatCard(
                                   title: 'Ethereum Dominance',
-                                  value: '12.1%',
+                                  value:
+                                      '${stats.ethDominance.toStringAsFixed(1)}%',
                                   icon: Icons.auto_awesome_rounded,
                                   accentColor: Colors.purpleAccent,
                                 ),
-                                const MarketStatCard(
+                                MarketStatCard(
                                   title: 'Active Cryptos',
-                                  value: '14,820',
+                                  value: _formatInteger(
+                                      stats.activeCryptocurrencies),
                                   icon: Icons.hub_rounded,
                                   accentColor: AppColors.gainGreen,
                                 ),
@@ -205,9 +219,18 @@ class _MarketStatsPageState extends State<MarketStatsPage> {
   }
 
   String _formatBigNumber(double number) {
-    if (number >= 1e12) return '${(number / 1e12).toStringAsFixed(2)} Trillion';
+    if (number >= 1e12) {
+      return '${(number / 1e12).toStringAsFixed(2)} Trillion';
+    }
     if (number >= 1e9) return '${(number / 1e9).toStringAsFixed(2)} Billion';
     if (number >= 1e6) return '${(number / 1e6).toStringAsFixed(2)} Million';
     return number.toStringAsFixed(2);
+  }
+
+  String _formatInteger(int value) {
+    return value.toString().replaceAllMapped(
+          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+          (Match m) => '${m[1]},',
+        );
   }
 }
